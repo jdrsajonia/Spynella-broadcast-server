@@ -6,6 +6,11 @@
 #include <string>
 #include <csignal>
 
+
+#include <list>
+#include <mutex>
+#include <thread>
+
 std::string red_id="\033[31m";
 std::string blue_id="\033[34m";
 std::string reset_id="\033[0m";
@@ -20,6 +25,52 @@ reset_id + u8"█████▀ ██      █   " + red_id + u8"██ ▀█
 blue_id+"Made by: jdsajonia & Spynella\n\n"+reset_id;
 
 
+std::list<int> clients;
+std::mutex mtx;
+
+
+void send_broadcast(int client_fd, std::string message){
+
+    std::lock_guard<std::mutex> lock(mtx);
+    for (int client : clients){
+        if (client==client_fd){
+            continue;
+        }
+        send(client, message.c_str(), message.size(), 0);
+    }
+}
+
+
+void handle_client(int client_fd){
+    while (true){            
+        char buffer[1024]={};
+        int bytes = recv(client_fd, buffer, sizeof(buffer)-1, 0);
+        if (bytes>0){
+            std::cout<<buffer<<std::endl;
+            std::string received(buffer);
+            std::string msg=std::to_string(client_fd)+"@spynella.net: "+ received;
+            send_broadcast(client_fd, msg);
+        }
+
+        else if (bytes==0){
+
+            {
+                std::lock_guard<std::mutex> lock(mtx);
+                clients.remove(client_fd);
+            }
+
+            close(client_fd);
+            std::cout<<client_fd<<" ha abandonado el chat\n";
+            break;
+        }
+        else{
+            std::cerr<<"Error en la conexion";
+            break;
+        }
+    }
+}
+
+
 
 int main(){
 
@@ -32,13 +83,10 @@ int main(){
     sockaddr_in address{};
     address.sin_family=AF_INET;
     address.sin_port=htons(1234);
-    inet_pton(AF_INET, "192.168.1.14", &address.sin_addr);
+    address.sin_addr.s_addr=INADDR_ANY;
     int opt=1;
     setsockopt(server_fd, SOL_SOCKET,SO_REUSEADDR, &opt, sizeof(opt));
-    // address.sin_addr.s_addr=INADDR_ANY;
     
-    
-
     int bind_state = bind(server_fd, (sockaddr*)&address, sizeof(address));
     if (bind_state<0){
         std::cerr<<"Error al unir el socket con la dirección IP";
@@ -53,54 +101,30 @@ int main(){
 
     std::cout<<"Escuchando en el puerto 1234...\n";
 
+
     while (true){
 
-        socklen_t addr_len=sizeof(address);
-        int client_fd=accept(server_fd, (sockaddr*)&address, &addr_len);
+        sockaddr_in client_address{};
+        socklen_t addr_len=sizeof(client_address);
+        int client_fd=accept(server_fd, (sockaddr*)&client_address, &addr_len);
         if (client_fd<0){
             std::cerr<<"Error al conectar con el cliente";
             return 1;
         }
-        
-        std::cout<<"Alguien se ha unido al chat\n";
-        
 
-        // std::string msg="Hey! esto es una prueba de chat por terminalees";
-        send(client_fd, server_banner.c_str(), server_banner.size(), 0);
-        //close(client_fd);
-
-
-
-        while (true){            
-            char buffer[1024]={};
-            
-            int bytes = recv(client_fd, buffer, sizeof(buffer)-1, 0);
-            if (bytes>0){
-                std::cout<<buffer<<std::endl;
-                std::string received(buffer);
-                std::string msg="tu respuesta fue: "+ received;
-                send(client_fd, msg.c_str(), msg.size(), 0);
-
-            }
-            else if (bytes==0){
-                close(client_fd);
-                break;
-            }
-
-        
-
+        {
+            std::lock_guard<std::mutex> lock(mtx);
+            clients.push_front(client_fd);
         }
         
         
-        close(client_fd);
-
-
+        std::cout<<client_fd<<" se ha unido al chat\n";
+        send(client_fd, server_banner.c_str(), server_banner.size(), 0);
+        
+        std::thread t(handle_client, client_fd);
+        t.detach();
     }
 
     close(server_fd);
-
-
-
-
     return 0;
 }
