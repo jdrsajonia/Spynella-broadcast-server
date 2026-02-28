@@ -1,17 +1,17 @@
 #include <unistd.h>
 #include <iostream>
 #include <sys/socket.h>
-// #include <netinet/in.h>
-#include <arpa/inet.h>
+#include <netinet/in.h>
+// #include <arpa/inet.h>
 #include <string>
 #include <csignal>
-
 
 #include <list>
 #include <mutex>
 #include <thread>
 
 std::string red_id="\033[31m";
+std::string green_id="\033[92m";
 std::string blue_id="\033[34m";
 std::string reset_id="\033[0m";
 
@@ -24,13 +24,25 @@ reset_id + u8"█████▀ ██      █   " + red_id + u8"██ ▀█
 "                                       \n"+
 blue_id+"Made by: jdsajonia & Spynella\n\n"+reset_id;
 
-
 std::list<int> clients;
 std::mutex mtx;
 
+std::string join_message_for(int client_fd){
+    return green_id+std::to_string(client_fd)+" se ha unido al chat"+reset_id+"\n";
+}
+
+
+
+std::string exit_message_for(int client_fd, bool error=false){
+    if (error){
+        return red_id+std::to_string(client_fd)+" ha sufrido un error de conexion"+reset_id+"\n";
+
+    }
+    return red_id+std::to_string(client_fd)+" ha abandonado el chat"+reset_id+"\n";
+}
+
 
 void send_broadcast(int client_fd, std::string message){
-
     std::lock_guard<std::mutex> lock(mtx);
     for (int client : clients){
         if (client==client_fd){
@@ -48,23 +60,32 @@ void handle_client(int client_fd){
         if (bytes>0){
             std::cout<<buffer<<std::endl;
             std::string received(buffer);
-            std::string msg=std::to_string(client_fd)+"@spynella.net: "+ received;
+            std::string msg=std::to_string(client_fd)+"@spynella.net: "+ received+"\n";
             send_broadcast(client_fd, msg);
         }
 
         else if (bytes==0){
-
             {
                 std::lock_guard<std::mutex> lock(mtx);
                 clients.remove(client_fd);
             }
-
+            
+            std::string msg_exit=exit_message_for(client_fd);
+            std::cout<<msg_exit;
+            send_broadcast(-1, msg_exit);
             close(client_fd);
-            std::cout<<client_fd<<" ha abandonado el chat\n";
             break;
         }
         else{
-            std::cerr<<"Error en la conexion";
+            {
+                std::lock_guard<std::mutex> lock(mtx);
+                clients.remove(client_fd);
+            } 
+            
+            std::string msg_exit_err=exit_message_for(client_fd, true);
+            std::cerr<<msg_exit_err;
+            send_broadcast(-1, msg_exit_err);
+            close(client_fd);
             break;
         }
     }
@@ -117,12 +138,13 @@ int main(){
             clients.push_front(client_fd);
         }
         
-        
-        std::cout<<client_fd<<" se ha unido al chat\n";
+        std::string msg_join=join_message_for(client_fd);
+        std::cout<<msg_join;
         send(client_fd, server_banner.c_str(), server_banner.size(), 0);
+        send_broadcast(-1, msg_join);
         
-        std::thread t(handle_client, client_fd);
-        t.detach();
+        std::thread client_thread(handle_client, client_fd);
+        client_thread.detach();
     }
 
     close(server_fd);

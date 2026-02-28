@@ -5,17 +5,31 @@
 #include <string>
 #include <csignal>
 
+
+// #include <mutex>
+#include <thread>
+
 int client_fd;
-
-
-
-
 
 void handle_exit(int signal){
     std::cout<<"Cerrando el cliente\n";
     close(client_fd);
     exit(0);
 
+}
+
+void receive_messages(){
+    while (true){
+        char buffer[2048]={};
+        int bytes=recv(client_fd, buffer, sizeof(buffer)-1, 0);
+        if (bytes>0){
+            std::cout<<buffer;
+        }
+        else{
+            std::cerr<<"Error al recibir datos";
+            return;
+        }
+    }
 }
 
 int main(){
@@ -40,28 +54,16 @@ int main(){
     }
 
     
-    while (true){
-        char buffer[2048]={};
-        int bytes=recv(client_fd, buffer, sizeof(buffer)-1, 0);
-        if (bytes>0){
-            std::cout<<buffer<<std::endl;
-        }
+    
+    std::thread receive_thread(receive_messages);
+    receive_thread.detach();
 
+    while (true){
         std::string msg;
+        // std::cout<<">> ";
         getline(std::cin, msg);
         send(client_fd, msg.c_str(), msg.size(), 0);
-
-        
-
-        
-
     }
     
-
-    close(client_fd);
-
-
-
-
     return 0;
-}            
+}
