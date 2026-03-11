@@ -74,7 +74,9 @@ void receive_messages(){
 }
 
 
-int main(){
+int main(int args, char *argv[]){
+    const char *ip=(args<2)?"127.0.0.1":argv[1];
+
     signal(SIGINT, handle_exit);
 
     client_fd=socket(AF_INET, SOCK_STREAM, 0);
@@ -86,7 +88,7 @@ int main(){
     sockaddr_in server_address;
     server_address.sin_family=AF_INET;
     server_address.sin_port=htons(1234);
-    inet_pton(AF_INET, "192.168.1.14", &server_address.sin_addr);
+    inet_pton(AF_INET, ip, &server_address.sin_addr);
     
     int connect_state=connect(client_fd,(sockaddr*) &server_address, sizeof(server_address));
     if (connect_state<0){
@@ -127,7 +129,7 @@ int main(){
             write(STDOUT_FILENO, &c, 1);
         }
 
-        // else if (c==) handle arrow keys to move backward and foward
+        // else if (c==)
     }
 
     disable_raw_mode();
