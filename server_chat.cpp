@@ -315,7 +315,7 @@ void handle_client(client &cli){
 
             if (buffer[0]=='/'){
                 std::cout<<"COMANDO EXECUTED\n";
-                std::vector tokend_command = parse_command(buffer);
+                std::vector<std::string> tokend_command = parse_command(buffer);
                 exec_command_for(cli, tokend_command);
             }
             else{
