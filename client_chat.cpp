@@ -15,6 +15,9 @@ std::mutex cout_mutex;
 
 termios global_termios_config;
 
+const std::string GREEN_BRIGHT = "\033[92m";
+const std::string RESET        = "\033[0m";
+const std::string PROMPT="<("+GREEN_BRIGHT+"you"+RESET+")> ";
 
 void disable_raw_mode(){
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &global_termios_config);
@@ -38,14 +41,14 @@ void cout_in_client_raw(char *buffer_received){
     if (out.back()!='\n'){
         out+='\n';
     }
-    out+=">> ";
+    out+=PROMPT;
     out+=saved_input_buffer;
     write(STDOUT_FILENO, out.c_str(), out.size());
 }
 
 
 void rewrite_input(){
-    std::string output="\r\033[2K>> "+saved_input_buffer;
+    std::string output="\r\033[2K"+PROMPT+saved_input_buffer;
     write(STDOUT_FILENO, output.c_str(), output.size());
 }
 
@@ -55,7 +58,6 @@ void handle_exit(int signal){
     close(client_fd);
     disable_raw_mode();
     exit(0);
-
 }
 
 
@@ -76,7 +78,6 @@ void receive_messages(){
 
 int main(int args, char *argv[]){
     const char *ip=(args<2)?"127.0.0.1":argv[1];
-
     signal(SIGINT, handle_exit);
 
     client_fd=socket(AF_INET, SOCK_STREAM, 0);
@@ -100,7 +101,7 @@ int main(int args, char *argv[]){
     std::thread receive_thread(receive_messages);
     receive_thread.detach();
 
-    write(STDOUT_FILENO, ">> ", 3);
+    write(STDOUT_FILENO, PROMPT.c_str(), PROMPT.size());
     char c;
 
     while (true){
@@ -114,7 +115,7 @@ int main(int args, char *argv[]){
                 send(client_fd, saved_input_buffer.c_str(), saved_input_buffer.size(), 0); 
                 saved_input_buffer.clear();
             }
-            write(STDOUT_FILENO, ">> ", 3);
+            write(STDOUT_FILENO, PROMPT.c_str(), PROMPT.size());
         }
 
         else if (c==127 || c==8){

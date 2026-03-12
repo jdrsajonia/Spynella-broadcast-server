@@ -148,15 +148,15 @@ std::vector<std::string> get_timestamp(){
 //MESSAGES
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 std::string join_message_for(const client &cli){
-    return GREEN+std::to_string(cli.client_fd)+" se ha unido al chat"+WHITE+"\n";
+    return GREEN+cli.nickname+" joined the chat at ["+get_timestamp()[0]+" | "+get_timestamp()[1]+"]"+WHITE+"\n";
 }
 
 
 std::string exit_message_for(const client &cli, bool error=false){
     if (error){
-        return RED+std::to_string(cli.client_fd)+" ha sufrido un error de conexion"+WHITE+"\n";
+        return RED+cli.nickname+" suffered an error connection at ["+get_timestamp()[0]+" | "+get_timestamp()[1]+"]"+WHITE+"\n";
     }
-    return RED+std::to_string(cli.client_fd)+" ha abandonado el chat"+WHITE+"\n";
+    return RED+cli.nickname+" has left the chat at ["+get_timestamp()[0]+" | "+get_timestamp()[1]+"]"+WHITE+"\n";
 }
 
 
@@ -173,13 +173,14 @@ std::string client_prompt_for(const client &cli){
 //COMMANDS
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void current_clients_command(const client &cli){
-    std::string buffer="Clientes conectados!\n";
+    std::string buffer="Clients connected!\n";
     {   
         std::lock_guard<std::mutex> lock(mtx);
         for (const client &current_cli : available_clients){
-            buffer+=client_prompt_for(current_cli)+"\n";
+            buffer+="\t"+client_prompt_for(current_cli)+"\n";
         }
     }
+    buffer+=RESET;
     send(cli.client_fd, buffer.c_str(), buffer.size(), 0);
 }
 
