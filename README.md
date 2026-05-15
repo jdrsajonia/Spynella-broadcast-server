@@ -1,6 +1,6 @@
 # Spynella Broadcast Server
 <p align="center">
-    <img src="spynella.gif" width='480' />
+    <img src="spynella.gif" width='780' />
 </p>
 A console-based chat application using the broadcast server model to handle multiple concurrent clients. Built in C++ with socket programming and multi-threading support.
 
